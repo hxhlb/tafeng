@@ -55,6 +55,10 @@ export default function App() {
     setProcesses(nextProcesses);
   }, []);
 
+  const handleCommandSubmitted = useCallback(() => {
+    setHistoryRefreshKey((key) => key + 1);
+  }, []);
+
   function connectProfile(id: string) {
     setSelectedId(id);
     setConnectionAttempt((attempt) => attempt + 1);
@@ -140,7 +144,7 @@ export default function App() {
             connectingLabel={t("connecting")}
             disconnectedLabel={t("disconnected")}
             onMetrics={handleMetrics}
-            onCommandSubmitted={() => setHistoryRefreshKey((key) => key + 1)}
+            onCommandSubmitted={handleCommandSubmitted}
           />
           <FileEditor t={t} />
           <CommandHistoryPanel refreshKey={historyRefreshKey} t={t} />
