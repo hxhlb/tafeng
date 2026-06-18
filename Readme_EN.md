@@ -85,14 +85,7 @@ tafeng-kv
 tafeng-kv-preview
 ```
 
-7. Open each namespace and copy its Namespace ID.
-
-You need two values:
-
-```text
-Production KV ID
-Preview KV ID
-```
+7. Remember these namespace names. You will bind them manually in the Worker settings later. You do not need to write KV IDs into `wrangler.toml`.
 
 ### 3. Create R2 Buckets in Cloudflare
 
@@ -112,44 +105,9 @@ tafeng-files
 tafeng-files-preview
 ```
 
-The bucket names should match [wrangler.toml](./wrangler.toml). You may use different names, but then you must also update `wrangler.toml`.
+You may use the recommended bucket names above or custom names. You will select and bind the bucket in the Worker settings later. You do not need to write bucket names into `wrangler.toml`.
 
-### 4. Edit wrangler.toml on GitHub
-
-Go back to your forked GitHub repository.
-
-1. Open [wrangler.toml](./wrangler.toml).
-2. Click the pencil icon in the top-right corner.
-3. Find the KV configuration:
-
-```toml
-[[kv_namespaces]]
-binding = "TAFENG_KV"
-id = "replace-with-production-kv-id"
-preview_id = "replace-with-preview-kv-id"
-```
-
-4. Replace the placeholder values with the KV IDs copied from Cloudflare:
-
-```toml
-[[kv_namespaces]]
-binding = "TAFENG_KV"
-id = "your-production-kv-id"
-preview_id = "your-preview-kv-id"
-```
-
-5. Confirm the R2 bucket names:
-
-```toml
-[[r2_buckets]]
-binding = "TAFENG_FILES"
-bucket_name = "tafeng-files"
-preview_bucket_name = "tafeng-files-preview"
-```
-
-6. Click `Commit changes` to save the edit to your fork.
-
-### 5. Connect the GitHub Repository in Cloudflare
+### 4. Connect the GitHub Repository in Cloudflare
 
 Cloudflare Workers can build and deploy from a GitHub repository. The exact Dashboard labels may change over time, but the flow is usually:
 
@@ -164,9 +122,9 @@ Cloudflare Workers can build and deploy from a GitHub repository. The exact Dash
 
 If the page asks for a project type, choose `Workers`, not a plain static Pages project.
 
-### 6. Fill in Build Settings
+### 5. Fill in Build Settings
 
-Cloudflare may automatically read [wrangler.toml](./wrangler.toml). If it asks you to fill fields manually, use:
+Cloudflare will read the Worker entrypoint and static asset settings from [wrangler.toml](./wrangler.toml). If it asks you to fill fields manually, use:
 
 ```text
 Project name: tafeng
@@ -189,19 +147,71 @@ If the page only provides one command field, use:
 npm run build && npm run worker:deploy
 ```
 
-Cloudflare's Workers Git integration UI can vary slightly between releases. The key idea is: run `npm run build` to generate `dist/client`, then let Wrangler deploy the Worker using `wrangler.toml`.
+Cloudflare's Workers Git integration UI can vary slightly between releases. The key idea is: run `npm run build` to generate `dist/client`, then deploy the Worker.
 
-### 7. Set Environment Variables and Secrets
+### 6. Finish the First Deployment
+
+Click `Deploy`, `Save and deploy`, or a similar button to let Cloudflare pull the code from GitHub and finish the first deployment.
+
+The app may not work correctly immediately after the first deployment because KV and R2 are not bound yet. This is expected. Continue to the next step.
+
+### 7. Manually Bind KV and R2 in the Web UI
+
+Open the newly created `tafeng` Worker:
+
+1. Open the Cloudflare Dashboard.
+2. Go to `Workers & Pages`.
+3. Open the `tafeng` Worker.
+4. Go to `Settings`.
+5. Find `Bindings`. In some Dashboard versions, this may appear under `Variables and Secrets` or `Resources`.
+
+Add the KV Namespace binding:
+
+```text
+Binding type: KV Namespace
+Variable name: TAFENG_KV
+KV namespace: tafeng-kv
+```
+
+If the page separates Preview settings, bind Preview too:
+
+```text
+Variable name: TAFENG_KV
+KV namespace: tafeng-kv-preview
+```
+
+Add the R2 Bucket binding:
+
+```text
+Binding type: R2 Bucket
+Variable name: TAFENG_FILES
+R2 bucket: tafeng-files
+```
+
+If the page separates Preview settings, bind Preview too:
+
+```text
+Variable name: TAFENG_FILES
+R2 bucket: tafeng-files-preview
+```
+
+The binding names must match exactly:
+
+```text
+TAFENG_KV
+TAFENG_FILES
+```
+
+The code reads KV and R2 by these names. If they are misspelled, login, settings, connection profiles, command history, or file uploads will fail.
+
+### 8. Set Environment Variables and Secrets
 
 The first deployment may still work with the default password `tafeng`, but production must use your own admin password.
 
-After the Worker is created:
+Still on the Worker settings page:
 
-1. Open `Workers & Pages` in Cloudflare Dashboard.
-2. Open the `tafeng` Worker.
-3. Go to `Settings`.
-4. Open `Variables and Secrets`.
-5. Add a Secret:
+1. Open `Variables and Secrets`.
+2. Add a Secret:
 
 ```text
 Name: ADMIN_PASSWORD
@@ -217,9 +227,9 @@ Value: a long random string
 
 If the Dashboard separates `Production` and `Preview` environments, set `ADMIN_PASSWORD` at least for `Production`.
 
-### 8. Redeploy
+### 9. Redeploy
 
-After adding Secrets, redeploy once:
+After binding KV/R2 and adding Secrets, redeploy once:
 
 1. Open the Worker's `Deployments` or `Builds` page.
 2. Find the latest deployment.
@@ -227,7 +237,7 @@ After adding Secrets, redeploy once:
 
 You can also make a tiny README edit in GitHub and commit it to trigger a new Cloudflare build.
 
-### 9. Open Tafeng
+### 10. Open Tafeng
 
 After deployment, Cloudflare will provide a `workers.dev` URL, for example:
 
@@ -242,7 +252,7 @@ Open it:
 3. Add VPS connection profiles from the left panel.
 4. The current version is still in development bridge mode. Real SSH/SFTP needs to be implemented in [worker/sshBridge.ts](./worker/sshBridge.ts) using Worker TCP Socket.
 
-### 10. Configure a Custom Domain
+### 11. Configure a Custom Domain
 
 To use your own domain:
 
@@ -337,22 +347,11 @@ Create the preview KV namespace:
 npx wrangler kv namespace create TAFENG_KV --preview
 ```
 
-Wrangler will output something similar to:
+After creating the namespace, you do not need to write KV IDs into [wrangler.toml](./wrangler.toml). Add the KV binding manually in the Cloudflare Dashboard Worker settings:
 
-```toml
-[[kv_namespaces]]
-binding = "TAFENG_KV"
-id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-preview_id = "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
-```
-
-Copy `id` and `preview_id` into [wrangler.toml](./wrangler.toml):
-
-```toml
-[[kv_namespaces]]
-binding = "TAFENG_KV"
-id = "your-production-kv-id"
-preview_id = "your-preview-kv-id"
+```text
+Variable name: TAFENG_KV
+KV namespace: tafeng-kv
 ```
 
 ### 3. Create R2 Buckets
@@ -369,13 +368,11 @@ Create the preview bucket:
 npx wrangler r2 bucket create tafeng-files-preview
 ```
 
-Make sure [wrangler.toml](./wrangler.toml) matches the bucket names:
+After creating the bucket, you do not need to write bucket names into [wrangler.toml](./wrangler.toml). Add the R2 binding manually in the Cloudflare Dashboard Worker settings:
 
-```toml
-[[r2_buckets]]
-binding = "TAFENG_FILES"
-bucket_name = "tafeng-files"
-preview_bucket_name = "tafeng-files-preview"
+```text
+Variable name: TAFENG_FILES
+R2 bucket: tafeng-files
 ```
 
 ### 4. Set the Admin Password
@@ -584,20 +581,27 @@ npx wrangler secret put ADMIN_PASSWORD
 
 When no Secret is configured during local development, the default password is `tafeng`.
 
-### 2. Wrangler says the KV id is invalid.
+### 2. Login or settings API reports a KV-related error.
 
-Make sure you have run:
+Make sure the Worker has a KV binding in the Cloudflare Dashboard:
 
-```bash
-npx wrangler kv namespace create TAFENG_KV
-npx wrangler kv namespace create TAFENG_KV --preview
+```text
+Variable name: TAFENG_KV
+KV namespace: tafeng-kv
 ```
 
-Then copy the generated `id` and `preview_id` into [wrangler.toml](./wrangler.toml).
+The binding name must be exactly `TAFENG_KV`.
 
 ### 3. File upload fails.
 
-Make sure the R2 buckets exist and that `bucket_name` and `preview_bucket_name` in [wrangler.toml](./wrangler.toml) are correct.
+Make sure the R2 bucket exists and that the Worker has an R2 binding in the Cloudflare Dashboard:
+
+```text
+Variable name: TAFENG_FILES
+R2 bucket: tafeng-files
+```
+
+The binding name must be exactly `TAFENG_FILES`.
 
 ### 4. The terminal does not connect to a real VPS yet.
 
